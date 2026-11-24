@@ -1,0 +1,24 @@
+# Cyberslop Chrome Upkeep 1.1.0: let worn chrome lengthen cyberware cooldowns and shorten cyberware buffs.
+# Vanilla clamps both stats to 0..1 (base_values.tweak), so a negative modifier did nothing unless V
+# already had a positive bonus. Vanilla and the installed mods only ever add positive values (checked
+# 2026-11-06). Feeds: CyberwareCooldownDuration (MaxDuration x -stat, player_cooldowns.tweak) and
+# Items.CyberwareBuffDuration (Sandevistan, Kerenzikov and other cyberware buffs).
+# 1.7.1: a negative CyberwareDurationBuff also failed the time-dilation effectors' "Equal 0" / "Greater 0"
+# checks (Synaptic Accelerator, Reflex Recorder, Grenade Spotter: no slow time at all). The redscript
+# ChromeUpkeepDurationPrereqs (CyberslopChromeUpkeep.reds) turns those "Equal 0" checks into "LessOrEqual 0".
+BaseStats.CyberwareCooldownReduction:
+  min: -1.0
+
+BaseStats.CyberwareDurationBuff:
+  min: -1.0
+
+# 1.7.2: worn arms cost up to +160 % stamina per swing (-1.6 x severity). These StaminaReductionStat stats have a
+# vanilla floor of -1 (= +100 %), which cut the penalty off around 30 % condition. Nothing else makes them negative.
+BaseStats.StrongArmsStaminaCostReduction:
+  min: -2.0
+
+BaseStats.MantisBladesStaminaCostReduction:
+  min: -2.0
+
+BaseStats.MonoWiresStaminaCostReduction:
+  min: -2.0
