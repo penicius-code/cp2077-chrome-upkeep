@@ -1,7 +1,7 @@
 # Chrome Upkeep
 
 Cyberware that wears with use, loses performance as it wears and needs paid servicing at a ripperdoc, with a Chrome Clinic window for the repairs, for Cyberpunk 2077. Single-player only.
-Version: Chrome Upkeep 1.7.2, Chrome Clinic 1.1.3 | For game version 2.5 | Status: no version of either part has a written in-game test record; the Chrome Clinic window has been seen running in game (screenshot below)
+Version: Chrome Upkeep 1.7.2, Chrome Clinic 1.1.3 | For game version 2.5 | Status: Chrome Upkeep 1.7.2 and Chrome Clinic 1.1.3 in use in my game and working; no written test record
 
 > This is an unofficial fan work and is not approved/endorsed by CD PROJEKT RED. No game files are included.
 
@@ -110,9 +110,11 @@ Chrome Clinic window: with the CET overlay open it has buttons, and anything tha
 
 | Part | Result |
 |---|---|
-| Chrome Upkeep 1.0.0 to 1.7.2 | No written in-game test record for any version. |
-| Chrome Clinic 1.0.0 to 1.1.3 | No written in-game test record for any version. An offline mock test of the window's fold and expand behaviour passed 14 of 14 checks on 1.1.2; that test is not part of this repository. |
-| Screenshot | The window at the top was captured in game with the mod running: conditions, prices and components are live values. The version on screen was not recorded. This is not a test pass. |
+| Chrome Upkeep 1.0.0 to 1.7.1 | No written in-game test record for any version. |
+| Chrome Upkeep 1.7.2 | In use in the author's game and working (author's statement, 2026-11-24). No written test record. |
+| Chrome Clinic 1.0.0 to 1.1.2 | No written in-game test record for any version. An offline mock test of the window's fold and expand behaviour passed 14 of 14 checks on 1.1.2; that test is not part of this repository. |
+| Chrome Clinic 1.1.3 | In use in the author's game and working (author's statement, 2026-11-24). No written test record. |
+| Screenshot | The window at the top was captured in game with the mod running: conditions, prices and components are live values. The version on screen was not recorded. |
 | Code check | The source audit checked all 17 wrap targets against the 2.5 game scripts. |
 
 ## Compatibility
