@@ -3,6 +3,8 @@
 Cyberware that wears with use, loses performance as it wears and needs paid servicing at a ripperdoc, with a Chrome Clinic window for the repairs, for Cyberpunk 2077. Single-player only.
 Version: Chrome Upkeep 1.7.2, Chrome Clinic 1.1.3 | For game version 2.5 | Status: Chrome Upkeep 1.7.2 and Chrome Clinic 1.1.3 in use in my game and working; no written test record
 
+**Download:** [latest release](https://github.com/penicius-code/cp2077-chrome-upkeep/releases/latest) (zip; install steps below)
+
 > This is an unofficial fan work and is not approved/endorsed by CD PROJEKT RED. No game files are included.
 
 <img src="docs/media/chrome-clinic.png" width="480" alt="The Chrome Clinic window in game: condition, repair price, components from the bag and chair time for ten cyberware systems, a total for repairing everything to 100, and the nanobot canister count">
@@ -62,7 +64,7 @@ Requirements are not bundled. Install them first.
 ## Install
 
 1. Install the requirements above.
-2. Copy the contents of `package/` into the game folder, so that `r6\scripts\zz_CyberslopChromeUpkeep\CyberslopChromeUpkeep.reds` exists.
+2. Download the zip from the [latest release](https://github.com/penicius-code/cp2077-chrome-upkeep/releases/latest) (the same files as `package/` in this repository) and extract it into the game folder, so that `r6\scripts\zz_CyberslopChromeUpkeep\CyberslopChromeUpkeep.reds` exists.
 3. Start the game and load a save. Mod Settings shows "Cyberslop Chrome Upkeep"; the "Cyberslop Chrome Clinic" window opens when you stand next to a ripperdoc.
 
 ## Uninstall / roll back
