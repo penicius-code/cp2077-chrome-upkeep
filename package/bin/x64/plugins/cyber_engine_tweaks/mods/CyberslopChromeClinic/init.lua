@@ -1,4 +1,9 @@
--- Cyberslop Chrome Clinic 1.1.3 (2026-11-23; 1.1.0 - 1.1.2 2026-11-22)
+-- Cyberslop Chrome Clinic 1.2.2 (2026-11-26; 1.2.1 2026-11-25; 1.1.3 2026-11-23; 1.1.0 - 1.1.2 2026-11-22)
+-- 1.2.2: canisters carried come from ChromeWear:NanoCount() (Chrome Upkeep 1.8.2); wear.nanobots read nil on CET 1.38.1.
+-- 1.2.1: needs Chrome Upkeep 1.8.1: a row's time is that system's own work, the visit's setup comes on top once
+--   (in the totals and in the row's tooltip); components from the bag can be of other qualities.
+-- 1.2.0: needs Chrome Upkeep 1.8.0 (nanobots reworked): canister price and carry limit come from the script, a
+--   dose shows its duration and whether one canister is enough.
 -- 1.1.3: "Hide at this ripper" compares with the ripper name from the light poll (was the full poll's, which stops
 --   while the window is hidden, so a dismissal also hid the window at every other ripper); leaving a ripper no
 --   longer collapses the window while it is pinned or the overlay is open.
@@ -8,7 +13,7 @@
 -- The CET window for Cyberslop Chrome Upkeep 1.6.0 (all rules and prices live in its redscript, this only shows
 -- and asks): chrome condition per body system, what a ripper charges to bring each back to 100 % (materials at
 -- market price + the ripper's fee after Street Cred and Viktor's friend rate), repair at the ripper, nanobot
--- canisters (buy at a ripper, use anywhere: every system below 50 % up to 50 % over 60 game minutes).
+-- canisters (buy at a ripper, inject anywhere: up to 60 points of repair per canister, systems up to 60 %).
 --   Next to a ripperdoc (4 m, or the one whose menu you opened, 6 m): the window opens by itself.
 --   With the CET overlay open: the window is always there, with buttons (two clicks for anything that costs).
 --   Without the overlay the window only shows; the hotkeys act (press twice within 5 s to confirm).
@@ -20,7 +25,7 @@
 --   you reach a ripperdoc, and collapses again (back into Decluttered's hidden spot) when you leave.
 
 local CC = {
-  version = "1.1.2",
+  version = "1.2.2",
   overlay = false,
   pinned = false,       -- hotkey "show / hide": window stays up without a ripper
   dismissed = nil,      -- ripper name the window was closed for (opens again at another ripper)
@@ -118,9 +123,15 @@ local function pollFull()
     d.money = clinic:Money()
     d.cred = clinic:StreetCred()
     d.combat = clinic:InCombat()
-    d.nano = wear.nanobots or 0
+    -- 1.2.2: getter (Chrome Upkeep 1.8.2); the raw field reads nil on CET 1.38.1.
+    local okN, n = pcall(function() return wear:NanoCount() end)
+    if not okN or n == nil then okN, n = pcall(function() return wear.nanobots end) end
+    d.nano = (okN and n) or 0
     d.nanoActive = wear:NanoActive()
     d.nanoMin = wear:NanoMinutesLeft()
+    d.nanoPrice = clinic:NanoPrice()
+    d.nanoCarry = clinic:NanoCarry()
+    d.setupMin = clinic:SetupMinutes()
     wear:RefreshCounts()
     -- 1.1.0: components in the bag, and whether the ripper uses them (Mod Settings).
     d.useBag = clinic:UsesBag()
@@ -164,6 +175,7 @@ local function pollFull()
             num(r.base), r.n, r.n == 1 and "implant" or "implants", matLine, num(r.feeList), r.cut,
             d.friend and " and friend rate" or "", num(r.fee),
             r.ownN > 0 and "\nPriced on your whole bag; Repair all shares it, worst system first." or "")
+          r.tip = r.tip .. string.format("\nTime %s for this system + %s setup once per visit.", clock(r.minutes), clock(d.setupMin or 10))
           rowTotal = rowTotal + r.total
           rowMinutes = rowMinutes + r.minutes
           if r.total <= budget then
@@ -180,7 +192,7 @@ local function pollFull()
     end)
   end
   -- 1.1.0: totals from the plan the repair pays (worst first, bag and money shared); row sums if that fails.
-  d.total, d.minutes, d.afford = rowTotal, rowMinutes, rowAfford
+  d.total, d.minutes, d.afford = rowTotal, rowMinutes + (rowMinutes > 0 and (d.setupMin or 10) or 0), rowAfford
   pcall(function()
     local pa = clinic:PlanAll()
     d.total, d.minutes = pa.total or rowTotal, pa.minutes or rowMinutes
@@ -196,6 +208,7 @@ local function pollFull()
     pcall(function()
       local p = wear:NanoPlan(false)
       d.plan = { systems = p.systems or 0, total = p.total or 0, short = p.short, text = p.text or "",
+                 minutes = p.minutes or 0, spent = p.spent,
                  need = p:NeedText(), have = p:HaveText(), take = p:TakeText() }
     end)
   end
@@ -302,7 +315,7 @@ registerHotkey("CyberslopChromeClinicBuy", "Chrome Clinic: buy one nanobot canis
   pollFull()
   local d = CC.d
   if not d or not d.near then hud("Chrome Clinic: nanobots are sold by ripperdocs.") return end
-  if armed("buy", string.format("Buy one nanobot canister: 70,000 eddies (you carry %d, have %s eddies)", d.nano or 0, d.money_s)) then
+  if armed("buy", string.format("Buy one nanobot canister: %s eddies (you carry %d, have %s eddies)", num(d.nanoPrice or 10000), d.nano or 0, d.money_s)) then
     doBuy(1)
     hud(CC.msg or "")
   end
@@ -316,8 +329,8 @@ registerHotkey("CyberslopChromeClinicInject", "Chrome Clinic: inject nanobots", 
   if d.nanoActive then hud(string.format("Nanobots at work: %s left.", clock(d.nanoMin))) return end
   if (d.nano or 0) <= 0 then hud("No nanobot canister. Ripperdocs sell them.") return end
   local p = d.plan
-  if not p or p.systems == 0 then hud("Nothing below 50 %: nanobots only pull failing chrome back to 50 %.") return end
-  if armed("inject", string.format("Inject nanobots: %s, eats %s components", p.text, p.take)) then
+  if not p or p.systems == 0 then hud("Nothing below 60 %: nanobots only bring worn chrome back to 60 %.") return end
+  if armed("inject", string.format("Inject nanobots: %s over %s, eats %s components", p.text, clock(p.minutes), p.take)) then
     doInject()
     hud(CC.msg or "")
   end
@@ -374,20 +387,22 @@ local function drawNano(d, controls)
   if d.nanoActive then
     colored(CYAN, string.format("Nanobots at work: %s left (waiting or sleeping counts).", clock(d.nanoMin)))
   end
-  ImGui.Text(string.format("Nanobot canisters: %d of 10 carried", d.nano or 0))
+  ImGui.Text(string.format("Nanobot canisters: %d of %d carried", d.nano or 0, d.nanoCarry or 5))
   if controls and d.near then
     ImGui.SameLine()
-    if (d.nano or 0) < 10 then
-      costButton("buy1", "Buy 1 (70,000)", "Pay 70,000", function() doBuy(1) end)
+    if (d.nano or 0) < (d.nanoCarry or 5) then
+      local np = num(d.nanoPrice or 10000)
+      costButton("buy1", "Buy 1 (" .. np .. ")", "Pay " .. np, function() doBuy(1) end)
     end
   end
   local p = d.plan
   if not d.nanoActive and p then
     if p.systems == 0 then
-      colored(GREY, "  Nothing below 50: nanobots only pull failing chrome back to 50.")
+      colored(GREY, "  Nothing below 60: nanobots only bring worn chrome back to 60. The rest is ripper work.")
     else
-      colored(p.short and AMBER or GREY, "  A dose now: " .. p.text)
-      colored(p.short and AMBER or GREY, string.format("  feeds on %s components (needs %s; in your bag %s)", p.take, p.need, p.have))
+      colored(p.short and AMBER or GREY, "  A dose now: " .. p.text .. (p.total >= 0.5 and ("  (" .. clock(p.minutes) .. ")") or "")
+        .. (p.spent and "  one canister is not enough" or ""))
+      colored(p.short and AMBER or GREY, string.format("  feeds on %s components (needs %s or the same value in other qualities; in your bag %s)", p.take, p.need, p.have))
       if controls and (d.nano or 0) > 0 and p.total >= 0.5 then
         costButton("inject", "Inject nanobots", "Inject: 1 canister + " .. p.take, doInject)
       end

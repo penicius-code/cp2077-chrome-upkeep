@@ -1,7 +1,7 @@
 # Chrome Upkeep
 
 Cyberware that wears with use, loses performance as it wears and needs paid servicing at a ripperdoc, with a Chrome Clinic window for the repairs, for Cyberpunk 2077. Single-player only.
-Version: Chrome Upkeep 1.7.2, Chrome Clinic 1.1.3 | For game version 2.5 | Status: Chrome Upkeep 1.7.2 and Chrome Clinic 1.1.3 in use in my game and working; no written test record
+Version: Chrome Upkeep 1.8.2, Chrome Clinic 1.2.2 | For game version 2.5 | Status: Chrome Upkeep 1.7.2 and Chrome Clinic 1.1.3 in use in my game and working; Chrome Upkeep 1.8.0 to 1.8.2 and Chrome Clinic 1.2.0 to 1.2.2 installed in my game, not yet play-tested; no written test record
 
 **Download:** [latest release](https://github.com/penicius-code/cp2077-chrome-upkeep/releases/latest) (zip; install steps below)
 
@@ -15,13 +15,13 @@ In the base game, installed cyberware is bought once and then works forever at f
 
 ## What I built
 
-Chrome Upkeep treats installed chrome as machinery that needs upkeep, and Chrome Clinic is a window for the Cyber Engine Tweaks overlay that shows the state of the chrome and offers repairs. Three redscript files (2,939 lines), one Lua window (538 lines), a TweakXL file and an Input Loader file. It changes: the condition of each body system with chrome in it, the performance of worn cyberware, what a ripperdoc visit costs and how long it takes, and it adds nanobot canisters for repairs away from a ripperdoc. The conditions are kept in the save.
+Chrome Upkeep treats installed chrome as machinery that needs upkeep, and Chrome Clinic is a window for the Cyber Engine Tweaks overlay that shows the state of the chrome and offers repairs. Three redscript files (3,136 lines), one Lua window (538 lines), a TweakXL file and an Input Loader file. It changes: the condition of each body system with chrome in it, the performance of worn cyberware, what a ripperdoc visit costs and how long it takes, and it adds nanobot canisters for repairs away from a ripperdoc. The conditions are kept in the save.
 
 - Each body system with chrome in it (operating system, frontal cortex, nervous system, arms, legs, skin, circulatory system, skeleton, optics, hands, immune system) has a condition from 100 % down.
 - Using the cyberware wears it: Sandevistan, Berserk and Overclock activations and quickhack uploads, Kerenzikov, cyberarm swings and launcher shots, double and charged jumps, Optical Camo, Blood Pump, hits taken, plus 1 % per game day for every system.
 - Below 80 % a system gets a penalty that grows in 5 % steps (longer cooldowns, more RAM per quickhack, lower jumps, less armor, slower regeneration and similar, depending on the system). From 60 % down a system can malfunction (the vanilla "cyberware disabled" effect), and below 10 % it stops working.
 - A ripperdoc repairs worn chrome to 100 % for materials at market price plus a fee. Parts already in your bag are used first. Every implant installed or removed takes surgery time, followed by recovery.
-- Nanobot canisters, bought at a ripperdoc for 70,000 eddies (up to 10 carried), pull every system below 50 % up to 50 % over 60 game minutes, anywhere.
+- Nanobot canisters, bought at a ripperdoc for 10,000 eddies (follows the repair price setting; up to 5 carried), repair 60 points each, worst system first, up to 60 %, at 20 points per game hour per system, anywhere. They use twice the ripper's components for the same points.
 
 ## How it works
 
@@ -94,6 +94,7 @@ Mod Settings > Cyberslop Chrome Upkeep:
 | Clinic | Repair price (%) | 100 | 25 to 300 |
 | Clinic | Repairs use your components | on | |
 | Clinic | Surgery takes time | on | |
+| Clinic | Repair time (%) | 100 | 25 to 200 |
 | Clinic | Surgery time (%) | 100 | 10 to 200 |
 | Clinic | Post-op recovery | on | |
 | Clinic | Clinic quality | on | |
@@ -116,6 +117,7 @@ Chrome Clinic window: with the CET overlay open it has buttons, and anything tha
 | Chrome Upkeep 1.7.2 | In use in the author's game and working (author's statement, 2026-11-24). No written test record. |
 | Chrome Clinic 1.0.0 to 1.1.2 | No written in-game test record for any version. An offline mock test of the window's fold and expand behaviour passed 14 of 14 checks on 1.1.2; that test is not part of this repository. |
 | Chrome Clinic 1.1.3 | In use in the author's game and working (author's statement, 2026-11-24). No written test record. |
+| Chrome Upkeep 1.8.0 to 1.8.2, Chrome Clinic 1.2.0 to 1.2.2 | Installed in the author's game; no written in-game test record. Compile: 0 errors against the 2.5 script set. Clinic 1.2.2 checked with an offline mock that behaves like CET 1.38.1 (script fields read as nil). |
 | Screenshot | The window at the top was captured in game with the mod running: conditions, prices and components are live values. The version on screen was not recorded. |
 | Code check | The source audit checked all 17 wrap targets against the 2.5 game scripts. |
 
@@ -151,7 +153,7 @@ There is no written in-game test, so these notes describe fixes and design decis
 
 ## Changelog
 
-See [CHANGELOG.md](CHANGELOG.md). Latest: Chrome Upkeep 1.7.2 and Chrome Clinic 1.1.3 (2026-11-23).
+See [CHANGELOG.md](CHANGELOG.md). Latest: Chrome Upkeep 1.8.2 and Chrome Clinic 1.2.2 (2026-11-26). 1.8.0 reworked the nanobot canisters, 1.8.1 the ripper's components and repair time.
 
 ## Credits and licence
 

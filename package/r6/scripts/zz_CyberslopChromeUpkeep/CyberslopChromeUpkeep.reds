@@ -11,6 +11,14 @@
 //   (carry weight), hands (reload, recoil). Malfunctions from 60 % down (chance 60 - condition), dead below 10 %.
 //   Review fixes: restores held through the first tick after the chair; wear / drift log strings only
 //   built with the log on.
+// 1.8.2 (2026-11-26): ChromeWear.NanoCount() getter for Chrome Clinic 1.2.2 (its canister count read a field, nil on
+//   CET 1.38.1). Nothing else changed.
+// 1.8.1 (2026-11-25): the ripper covers missing components from V's bag in any quality by market value; repair
+//   time follows the wear (10 min per visit + 3 min per system + 60 min x (wear / 100)^2 per implant, 16 h cap).
+// 1.8.0 (2026-11-25): nanobots reworked: a canister is 10,000 list (follows "Repair price (%)"), carry 5, does up to
+//   60 points of repair, worst system first, up to 60 % (where malfunctions end), at 20 points per game hour, fed
+//   on components of any quality by market value (2x a ripper's). "Repair price (%)" also scales component counts.
+//   New setting "Repair time (%)" for the ripper's repair time. Details: CyberslopChromeRepair.reds.
 // 1.6.1: a ripper repair ended at 99.5 %, not 100 %: the clinic restored the systems, then moved the clock, and the
 //   next tick charged the 1 %/day drift for the whole chair time to the fresh chrome. Now the clinic settles the
 //   drift after its clock skip and re-applies the restores (SettleAfterSkip). Live log: with "Log to CET gamelog" on,
@@ -39,7 +47,7 @@
 //   CLINIC    (CyberslopChromeClinic.reds) Sitting in a ripperdoc's chair: they treat injuries
 //             (Injuries mod), repair worn chrome (materials + fee, CyberslopChromeRepair.reds), and
 //             every implant installed or removed takes surgery time, followed by recovery.
-//   FIELD     Nanobot canisters (CyberslopChromeRepair.reds): up to 50 % anywhere, at a steep price.
+//   FIELD     Nanobot canisters (CyberslopChromeRepair.reds): up to 60 % anywhere, about 1.4x a ripper's price.
 // Mod Settings > Cyberslop Chrome Upkeep. Conditions are kept in the save.
 module CyberslopChromeUpkeep
 
@@ -219,7 +227,7 @@ public class ChromeUpkeepSettings extends ScriptableSystem {
   @runtimeProperty("ModSettings.mod", "Cyberslop Chrome Upkeep")
   @runtimeProperty("ModSettings.category", "Clinic")
   @runtimeProperty("ModSettings.displayName", "Repair price (%)")
-  @runtimeProperty("ModSettings.description", "Scales ripper repairs (materials and fee). 100: materials = 3 % of the implants' base price per 100 % wear, in components of the implant's quality at market price; fee = 4 % per 100 % wear (min 250), x0.75 street / x1.3 top clinic, minus up to 60 % for Street Cred, Viktor another 15 % off.")
+  @runtimeProperty("ModSettings.description", "Scales ripper repairs (component count and fee), the nanobot canister price and the nanobots' feedstock. 100: materials = 3 % of the implants' base price per 100 % wear, in components of the implant's quality at market price; fee = 4 % per 100 % wear (min 250), x0.75 street / x1.3 top clinic, minus up to 60 % for Street Cred, Viktor another 15 % off.")
   @runtimeProperty("ModSettings.step", "5")
   @runtimeProperty("ModSettings.min", "25")
   @runtimeProperty("ModSettings.max", "300")
@@ -227,8 +235,17 @@ public class ChromeUpkeepSettings extends ScriptableSystem {
 
   @runtimeProperty("ModSettings.mod", "Cyberslop Chrome Upkeep")
   @runtimeProperty("ModSettings.category", "Clinic")
+  @runtimeProperty("ModSettings.displayName", "Repair time (%)")
+  @runtimeProperty("ModSettings.description", "Scales the time a ripper repair takes. 100: 10 min per visit + 3 min per body system + up to 60 min per implant, growing with the square of the wear (90 %: under a minute, 30 %: 29 min), 16 h at most. Surgery time (installing and removing implants) has its own setting.")
+  @runtimeProperty("ModSettings.step", "5")
+  @runtimeProperty("ModSettings.min", "25")
+  @runtimeProperty("ModSettings.max", "200")
+  public let repairTimePct: Int32 = 100;
+
+  @runtimeProperty("ModSettings.mod", "Cyberslop Chrome Upkeep")
+  @runtimeProperty("ModSettings.category", "Clinic")
   @runtimeProperty("ModSettings.displayName", "Repairs use your components")
-  @runtimeProperty("ModSettings.description", "On: the ripper (clinic window and chair service) first uses the components in your bag, of each implant's own quality, and charges market price only for the ones you are missing. Off: every component is bought from the ripper.")
+  @runtimeProperty("ModSettings.description", "On: the ripper (clinic window and chair service) first uses the components in your bag and charges market price only for what is missing: each implant's own quality first, then lower qualities, then higher ones, by market value. Off: every component is bought from the ripper.")
   public let repairUsesBag: Bool = true;
 
   @runtimeProperty("ModSettings.mod", "Cyberslop Chrome Upkeep")
@@ -270,7 +287,7 @@ public class ChromeUpkeepSettings extends ScriptableSystem {
   @runtimeProperty("ModSettings.mod", "Cyberslop Chrome Upkeep")
   @runtimeProperty("ModSettings.category", "Clinic")
   @runtimeProperty("ModSettings.displayName", "Nanobot canisters")
-  @runtimeProperty("ModSettings.description", "Emergency field repair from the Cyberslop Chrome Clinic window: a canister (70,000 eddies at any ripperdoc, carry 10) brings every system below 50 % up to 50 % over 60 game minutes (waiting or sleeping counts), feeding on components from your bag: twice what a ripper uses, the implant's quality or higher.")
+  @runtimeProperty("ModSettings.description", "Field repair from the Cyberslop Chrome Clinic window: a canister (10,000 eddies at any ripperdoc, carry 5) does up to 60 points of repair, worst system first, and only up to 60 %, where malfunctions end; the rest is ripper work. 20 points per game hour (waiting or sleeping counts). It feeds on components from your bag, twice what a ripper uses, any quality by market value: the implant's own first, then lower, then higher.")
   public let nanobots: Bool = true;
 
   @runtimeProperty("ModSettings.mod", "Cyberslop Chrome Upkeep")
@@ -861,11 +878,14 @@ public class ChromeWear extends ScriptableSystem {
   }
 
   // --- 1.5.0: nanobot canisters, the emergency field repair (prices and parts: ChromeRepair in CyberslopChromeRepair.reds).
-  // One canister: every system below 50 % rises to 50 % over 60 game minutes, on the game clock (waiting and sleeping
-  // count). The swarm rebuilds from feedstock: components of the implant's quality (or higher) from V's bag, twice what
-  // a ripper would use for the same work. Short on components = a partial repair, worst system first.
+  // 1.8.0: one canister does up to 60 points of repair, worst system first, each system up to 60 %, at 20 points per
+  // game hour on the game clock (waiting and sleeping count). The swarm rebuilds from feedstock: components from V's
+  // bag by market value, twice what a ripper would use. Short on components = a partial repair, worst system first.
 
   public final func NanoActive() -> Bool = this.nanoUntil > 0.0
+
+  // 1.8.2: canisters carried, for the CET window (CET 1.38.1 reads a script system's fields as nil).
+  public final func NanoCount() -> Int32 = this.nanobots
 
   public final func NanoMinutesLeft() -> Float {
     if this.nanoUntil <= 0.0 {
@@ -884,7 +904,8 @@ public class ChromeWear extends ScriptableSystem {
   }
 
   public final func AddNanobots(n: Int32) -> Void {
-    this.nanobots = Max(0, Min(ChromeRepair.NanoCarry(), this.nanobots + n));
+    // 1.8.0: the carry limit dropped from 10 to 5; canisters above it from an older save are kept.
+    this.nanobots = Max(0, n > 0 ? Max(this.nanobots, Min(ChromeRepair.NanoCarry(), this.nanobots + n)) : this.nanobots + n);
   }
 
   // Moves the running dose up to the game clock. Safe to call any time (the CET window calls it too).
@@ -942,25 +963,36 @@ public class ChromeWear extends ScriptableSystem {
   }
 
   // What a canister would do now (commit = false: dry run for the window) or does (commit = true).
+  // 1.8.0: up to NanoCapacity points per canister, worst system first, each up to the 60 % ceiling; feedstock by
+  // market value from any quality (own first, then lower, then higher); every system runs at NanoRate.
   public final func NanoPlan(commit: Bool) -> ref<ChromeNanoPlan> {
     let gi: GameInstance = this.GetGameInstance();
     let plan: ref<ChromeNanoPlan> = new ChromeNanoPlan();
+    let s: ref<ChromeUpkeepSettings> = this.Settings();
     let ceiling: Float = ChromeRepair.NanoCeiling();
+    let rate: Float = ChromeRepair.NanoRate();
+    let capLeft: Float = ChromeRepair.NanoCapacity();
+    let scale: Float = IsDefined(s) ? Cast<Float>(Max(1, s.repairPricePct)) / 100.0 : 1.0;
     let ts: ref<TransactionSystem> = GameInstance.GetTransactionSystem(gi);
     let avail: array<Int32>;
     let order: array<Int32>;
+    let tiers: array<Int32>;
+    let needQ: array<Float>;
     let parts: array<ref<ChromePart>>;
     let a: Int32;
     let i: Int32;
     let j: Int32;
     let k: Int32;
-    let n: Int32;
-    let left: Int32;
+    let q: Int32;
     let t: Int32;
-    let needSys: Int32;
-    let gotSys: Int32;
+    let x: Int32;
     let delta: Float;
     let gain: Float;
+    let needSys: Float;
+    let gotSys: Float;
+    let left: Float;
+    let price: Float;
+    let maxGain: Float = 0.0;
     plan.Init();
     if !IsDefined(this.m_player) {
       return plan;
@@ -971,6 +1003,7 @@ public class ChromeWear extends ScriptableSystem {
     k = 0;
     while k < 5 {
       plan.have[k] = avail[k];
+      ArrayPush(needQ, 0.0);
       k += 1;
     };
     a = 0;
@@ -980,7 +1013,7 @@ public class ChromeWear extends ScriptableSystem {
       };
       a += 1;
     };
-    // Worst first: the feedstock goes where the damage is.
+    // Worst first: the swarm and the feedstock go where the damage is.
     while ArraySize(order) > 0 {
       i = 0;
       j = 0;
@@ -992,40 +1025,90 @@ public class ChromeWear extends ScriptableSystem {
       };
       a = order[j];
       ArrayErase(order, j);
-      delta = ceiling - this.cond[a];
-      parts = ChromeRepair.Parts(gi, this.m_player, a);
-      needSys = 0;
-      gotSys = 0;
-      i = 0;
-      while i < ArraySize(parts) {
-        n = ChromeRepair.Units(parts[i].base, parts[i].q, delta, ChromeRepair.NanoWaste());
-        needSys += n;
-        plan.need[parts[i].q] = plan.need[parts[i].q] + n;
-        left = n;
-        k = parts[i].q;
-        while k < 5 && left > 0 {
-          t = Min(left, avail[k]);
-          avail[k] = avail[k] - t;
-          plan.take[k] = plan.take[k] + t;
-          left -= t;
+      plan.systems += 1;
+      delta = MinF(ceiling - this.cond[a], capLeft);
+      if ceiling - this.cond[a] > capLeft + 0.05 {
+        plan.spent = true;
+      };
+      if delta < 0.5 {
+        plan.text += (StrLen(plan.text) > 0 ? ", " : "") + ChromeArea.Name(a) + " " + IntToString(Cast<Int32>(this.cond[a])) + " % (next canister)";
+      } else {
+        // Feedstock value per implant quality for this system: base x points x 3 % x waste x the price setting.
+        parts = ChromeRepair.Parts(gi, this.m_player, a);
+        k = 0;
+        while k < 5 {
+          needQ[k] = 0.0;
           k += 1;
         };
-        gotSys += n - left;
-        i += 1;
-      };
-      gain = needSys > 0 ? delta * Cast<Float>(gotSys) / Cast<Float>(needSys) : delta;
-      plan.systems += 1;
-      if gain >= 0.5 {
-        plan.gain[a] = gain;
-        plan.total += gain;
-        plan.text += (StrLen(plan.text) > 0 ? ", " : "") + ChromeArea.Name(a) + " " + IntToString(Cast<Int32>(this.cond[a])) + " -> " + IntToString(Cast<Int32>(this.cond[a] + gain)) + " %";
-      } else {
-        plan.text += (StrLen(plan.text) > 0 ? ", " : "") + ChromeArea.Name(a) + " " + IntToString(Cast<Int32>(this.cond[a])) + " % (no feedstock)";
-      };
-      if gotSys < needSys {
-        plan.short = true;
+        needSys = 0.0;
+        gotSys = 0.0;
+        i = 0;
+        while i < ArraySize(parts) {
+          left = parts[i].base * delta / 100.0 * ChromeRepair.MatShare() * ChromeRepair.NanoWaste() * scale;
+          needQ[parts[i].q] = needQ[parts[i].q] + left;
+          needSys += left;
+          i += 1;
+        };
+        q = 4;
+        while q >= 0 {
+          if needQ[q] > 0.0 {
+            price = Cast<Float>(ChromeRepair.CompPrice(q));
+            t = Cast<Int32>(needQ[q] / price);
+            if Cast<Float>(t) * price < needQ[q] - 0.01 {
+              t += 1;
+            };
+            plan.need[q] = plan.need[q] + t;
+            // The implant's own quality first, then lower qualities, then higher.
+            ArrayClear(tiers);
+            k = q;
+            while k >= 0 {
+              ArrayPush(tiers, k);
+              k -= 1;
+            };
+            k = q + 1;
+            while k < 5 {
+              ArrayPush(tiers, k);
+              k += 1;
+            };
+            left = needQ[q];
+            x = 0;
+            while x < ArraySize(tiers) && left > 0.01 {
+              k = tiers[x];
+              price = Cast<Float>(ChromeRepair.CompPrice(k));
+              t = Cast<Int32>(left / price);
+              if Cast<Float>(t) * price < left - 0.01 {
+                t += 1;
+              };
+              t = Min(t, avail[k]);
+              if t > 0 {
+                avail[k] = avail[k] - t;
+                plan.take[k] = plan.take[k] + t;
+                left -= Cast<Float>(t) * price;
+              };
+              x += 1;
+            };
+            gotSys += needQ[q] - MaxF(left, 0.0);
+          };
+          q -= 1;
+        };
+        gain = needSys > 0.0 ? delta * MinF(1.0, gotSys / needSys) : delta;
+        if gotSys < needSys - 0.01 {
+          plan.short = true;
+        };
+        if gain >= 0.5 {
+          plan.gain[a] = gain;
+          plan.total += gain;
+          capLeft -= gain;
+          if gain > maxGain {
+            maxGain = gain;
+          };
+          plan.text += (StrLen(plan.text) > 0 ? ", " : "") + ChromeArea.Name(a) + " " + IntToString(Cast<Int32>(this.cond[a])) + " -> " + IntToString(Cast<Int32>(this.cond[a] + gain)) + " %";
+        } else {
+          plan.text += (StrLen(plan.text) > 0 ? ", " : "") + ChromeArea.Name(a) + " " + IntToString(Cast<Int32>(this.cond[a])) + " % (no feedstock)";
+        };
       };
     };
+    plan.minutes = Max(1, RoundF(maxGain / rate / 60.0));
     if !commit || plan.total < 0.5 {
       return plan;
     };
@@ -1039,11 +1122,11 @@ public class ChromeWear extends ScriptableSystem {
     a = 0;
     while a < ChromeArea.Count() {
       this.nanoLeft[a] = plan.gain[a];
-      this.nanoRate[a] = plan.gain[a] / ChromeRepair.NanoSeconds();
+      this.nanoRate[a] = plan.gain[a] > 0.0 ? rate : 0.0;
       a += 1;
     };
     this.nanoLast = this.GameNow();
-    this.nanoUntil = this.nanoLast + ChromeRepair.NanoSeconds();
+    this.nanoUntil = this.nanoLast + maxGain / rate;
     this.nanobots -= 1;
     return plan;
   }
@@ -1063,17 +1146,17 @@ public class ChromeWear extends ScriptableSystem {
       return "Nanobots already at work: " + IntToString(Cast<Int32>(this.NanoMinutesLeft() + 0.5)) + " game min left.";
     };
     if this.nanobots <= 0 {
-      return "No nanobot canister. Any ripperdoc sells them (" + ChromeRepair.Eddies(ChromeRepair.NanoPrice()) + " eddies).";
+      return "No nanobot canister. Any ripperdoc sells them (" + ChromeRepair.Eddies(ChromeRepair.NanoPrice(s.repairPricePct)) + " eddies).";
     };
     plan = this.NanoPlan(false);
     if plan.systems == 0 {
-      return "Nothing below " + IntToString(Cast<Int32>(ChromeRepair.NanoCeiling())) + " %: nanobots only pull failing chrome back to " + IntToString(Cast<Int32>(ChromeRepair.NanoCeiling())) + " %. The rest is ripper work.";
+      return "Nothing below " + IntToString(Cast<Int32>(ChromeRepair.NanoCeiling())) + " %: nanobots only bring worn chrome back to " + IntToString(Cast<Int32>(ChromeRepair.NanoCeiling())) + " %. The rest is ripper work.";
     };
     if plan.total < 0.5 {
-      return "No feedstock: the swarm needs " + ChromeRepair.UnitsText(plan.need) + " components (the implant's quality or higher), you have " + ChromeRepair.UnitsText(plan.have) + ".";
+      return "No feedstock: the swarm needs " + ChromeRepair.UnitsText(plan.need) + " components (or the same value in other qualities), you have " + ChromeRepair.UnitsText(plan.have) + ".";
     };
     plan = this.NanoPlan(true);
-    msg = "Nanobots injected: " + plan.text + " over 60 game min, fed on " + ChromeRepair.UnitsText(plan.take) + " components" + (plan.short ? " (not enough for all of it)" : "") + ". " + IntToString(this.nanobots) + (this.nanobots == 1 ? " canister" : " canisters") + " left.";
+    msg = "Nanobots injected: " + plan.text + " over " + IntToString(plan.minutes) + " game min, fed on " + ChromeRepair.UnitsText(plan.take) + " components" + (plan.short ? " (not enough for all of it)" : "") + (plan.spent ? " (canister spent, more to do)" : "") + ". " + IntToString(this.nanobots) + (this.nanobots == 1 ? " canister" : " canisters") + " left.";
     this.Log(msg);
     if s.notices {
       this.Notice(msg, SimpleMessageType.Neutral);

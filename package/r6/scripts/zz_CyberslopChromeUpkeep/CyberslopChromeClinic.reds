@@ -611,7 +611,7 @@ public class ChromeClinic extends ScriptableSystem {
     let s: ref<ChromeUpkeepSettings> = this.Settings();
     let w: ref<ChromeWear> = this.Wear();
     let near: Bool = this.m_deskNear;
-    return ChromeRepair.Quote(this.GetGameInstance(), this.m_player, a, IsDefined(w) ? w.Condition(a) : 100.0, near ? this.m_deskTier : 1, near && this.m_deskFriend, IsDefined(s) ? s.repairPricePct : 100, this.Bag());
+    return ChromeRepair.Quote(this.GetGameInstance(), this.m_player, a, IsDefined(w) ? w.Condition(a) : 100.0, near ? this.m_deskTier : 1, near && this.m_deskFriend, IsDefined(s) ? s.repairPricePct : 100, IsDefined(s) ? s.repairTimePct : 100, this.Bag());
   }
 
   // 1.6.0: repairs in the order they are paid, worst first, sharing the bag and the money.
@@ -658,7 +658,7 @@ public class ChromeClinic extends ScriptableSystem {
       };
       a = order[j];
       ArrayErase(order, j);
-      q = ChromeRepair.Quote(gi, this.m_player, a, w.Condition(a), tier, friend, IsDefined(s) ? s.repairPricePct : 100, bag);
+      q = ChromeRepair.Quote(gi, this.m_player, a, w.Condition(a), tier, friend, IsDefined(s) ? s.repairPricePct : 100, IsDefined(s) ? s.repairTimePct : 100, bag);
       if q.total > 0 {
         if money >= 0 && q.total > money {
           plan.skippedN += 1;
@@ -683,6 +683,8 @@ public class ChromeClinic extends ScriptableSystem {
         };
       };
     };
+    // 1.8.1: one setup per visit, 16 h at most.
+    plan.minutes = ChromeRepair.VisitMinutes(plan.minutes, IsDefined(s) ? s.repairTimePct : 100);
     plan.ownN = ChromeRepair.UnitsSum(plan.own);
     plan.ownText = ChromeRepair.UnitsText(plan.own);
     return plan;
@@ -763,6 +765,7 @@ public class ChromeClinic extends ScriptableSystem {
       msg = "Can't pay: " + skipped + " eddies.";
       return msg;
     };
+    minutes = ChromeRepair.VisitMinutes(minutes, s.repairTimePct);
     if minutes >= 1 {
       GameObjectEffectHelper.StartEffectEvent(this.m_player, n"time_skip_glitch", false);
       fx = new ChromeClinicGlitchOff();
@@ -783,7 +786,21 @@ public class ChromeClinic extends ScriptableSystem {
     return msg;
   }
 
-  // Nanobot canisters, from the ripper in reach. Fixed price, no Street Cred haggling: it is a sealed medical product.
+  // Nanobot canisters, from the ripper in reach. No Street Cred haggling: it is a sealed medical product.
+  // 1.8.0: 10,000 list, follows "Repair price (%)"; NanoPrice / NanoCarry are for the CET window.
+  public final func NanoPrice() -> Int32 {
+    let s: ref<ChromeUpkeepSettings> = this.Settings();
+    return ChromeRepair.NanoPrice(IsDefined(s) ? s.repairPricePct : 100);
+  }
+
+  public final func NanoCarry() -> Int32 = ChromeRepair.NanoCarry()
+
+  // 1.8.1, for the CET window: the setup minutes a visit adds once to the systems' own times.
+  public final func SetupMinutes() -> Int32 {
+    let s: ref<ChromeUpkeepSettings> = this.Settings();
+    return ChromeRepair.Setup(IsDefined(s) ? s.repairTimePct : 100);
+  }
+
   public final func BuyNanobots(n: Int32) -> String {
     let s: ref<ChromeUpkeepSettings> = this.Settings();
     let w: ref<ChromeWear> = this.Wear();
@@ -807,7 +824,7 @@ public class ChromeClinic extends ScriptableSystem {
       return "You already carry " + IntToString(ChromeRepair.NanoCarry()) + " canisters.";
     };
     n = Max(1, Min(n, room));
-    cost = n * ChromeRepair.NanoPrice();
+    cost = n * this.NanoPrice();
     if !this.Pay(cost, false, "nanobot canisters") {
       return IntToString(n) + (n == 1 ? " canister costs " : " canisters cost ") + ChromeClinic.Eddies(cost) + " eddies, you have " + ChromeClinic.Eddies(this.Money()) + ".";
     };
@@ -874,6 +891,7 @@ public class ChromeClinic extends ScriptableSystem {
     let skipped: String = "";
     let svcCost: Int32 = 0;
     let svcN: Int32 = 0;
+    let svcMin: Int32 = 0;
     let c: Float;
     let surgeryMin: Float = 0.0;
     let procs: array<Float>;
@@ -973,7 +991,7 @@ public class ChromeClinic extends ScriptableSystem {
           w.Restore(i, 100.0);
           svcCost += cost;
           svcN += 1;
-          minutes += Cast<Float>(quote.minutes);
+          svcMin += quote.minutes;
           serviced += (StrLen(serviced) > 0 ? ", " : "") + ChromeArea.Name(i) + " " + IntToString(Cast<Int32>(c)) + "%";
           this.Log("service " + ChromeArea.Name(i) + " " + FloatToStringPrec(c, 1) + " % -> 100 | components " + quote.partsText + ", from the bag " + quote.ownText + ", bought " + quote.buyText + " = " + IntToString(quote.mat) + " + fee " + IntToString(quote.fee) + " (-" + IntToString(quote.cut) + " %) = " + IntToString(cost) + " eb");
         } else {
@@ -983,6 +1001,7 @@ public class ChromeClinic extends ScriptableSystem {
         a += 1;
       };
       if svcN > 0 {
+        minutes += Cast<Float>(ChromeRepair.VisitMinutes(svcMin, s.repairTimePct));
         total += svcCost;
         parts += " · service " + ChromeClinic.Eddies(svcCost) + " (" + serviced + (plan.ownN > 0 ? "; from your bag " + plan.ownText : "") + ")";
       };

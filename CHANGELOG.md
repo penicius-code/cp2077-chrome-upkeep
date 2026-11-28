@@ -2,6 +2,26 @@
 
 Chrome Upkeep 1.0.0 to 1.3.0 were built on game version 2.31; from 1.4.0 the mod is for 2.5. Chrome Clinic started on 2.5. No version of either part has a written in-game test record.
 
+## Chrome Upkeep 1.8.2, Chrome Clinic 1.2.2 - 2026-11-26
+### Fixed
+- The Chrome Clinic window read the canister count from a script field of the wear system. CET 1.38.1 returns nil for such fields, so "Nanobot canisters" always showed 0. Chrome Upkeep 1.8.2 adds a `NanoCount()` getter; Clinic 1.2.2 uses it, with the raw field as a fallback.
+
+## Chrome Upkeep 1.8.1, Chrome Clinic 1.2.1 - 2026-11-25
+### Changed
+- The ripper takes components of other qualities, by market value: each quality first uses its own components, then lower qualities (rounded up), then higher ones (whole units only, so nothing is overpaid); the rest is bought at market price. "Repairs use your components" off buys everything, as before.
+- Repair time follows the wear: 10 minutes setup per visit, 3 minutes per body system, and per implant 60 minutes x (wear / 100)^2, capped at 16 hours per visit; all times x "Repair time (%)". A nearly intact implant is a short recalibration, a worn-out one a rebuild.
+- Clinic window: a row shows that system's own time; the setup is added once in the totals.
+
+## Chrome Upkeep 1.8.0, Chrome Clinic 1.2.0 - 2026-11-25
+### Changed
+- Nanobot canisters reworked as maintenance swarms: 10,000 eddies list price (follows "Repair price (%)"), up to 5 carried (more from an older save are kept), 60 points of repair per canister, worst system first, up to 60 % (which ends malfunctions), at 20 points per game hour per system. Feedstock is twice the ripper's materials for the same points, by market value, from any quality.
+- "Repair price (%)" also scales the number of components the ripper uses, not only the eddies.
+### Added
+- Setting "Repair time (%)" (25 to 200, default 100) for the repair time in the chair. "Surgery time (%)" still covers only installing and removing implants.
+- Clinic window: canister price and carry limit come from the script; a dose shows its duration and says when one canister is not enough.
+
+Compile: 0 errors on 2.5. Not yet play-tested.
+
 ## Chrome Upkeep 1.7.2 - 2026-11-23
 ### Fixed
 - The regeneration and buff-duration floors follow other mods' modifiers that come and go (for example Dark Future's hydration effects); before, stamina regeneration could drop below -100 %.
